@@ -63,6 +63,13 @@ h2 {
 }
 .btn-primary:hover { background-color: #007f65; }
 
+/* Index Page */
+.info-bar {
+    margin-bottom: 10px; color: #666; font-size: 14px;
+}
+.pagination {
+    margin-bottom: 15px;
+}
 .search-box {
     gap: 5px;
 }
