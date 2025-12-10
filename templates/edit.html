@@ -1,0 +1,55 @@
+{{ define "edit" }}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Edit Employee</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Edit Employee</h2>
+
+        <form action="/employees/update" method="POST">
+            <input type="hidden" name="id" value="{{.Employee.Id}}">
+            <div class="form-group">
+                <label for="name" class="form-label">Full Name</label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="Enter employee name" required value="{{.Employee.Name}}">
+            </div>
+
+            <div class="form-group">
+                <label for="age" class="form-label">Age</label>
+                <input type="number" id="age" name="age" class="form-control" placeholder="Enter employee age" required value="{{.Employee.Age}}">
+            </div>
+
+            <div class="form-group">
+                <label for="position" class="form-label">Position</label>
+                <input type="text" id="position" name="position" class="form-control" placeholder="e.g., Developer, Designer..." value="{{.Employee.Position}}">
+            </div>
+
+            <div class="form-group">
+                <label for="salary" class="form-label">Salary ($)</label>
+                <input type="number" id="salary" name="salary" class="form-control" placeholder="0" min="0" step="0.01" value="{{.Employee.Salary}}">
+            </div>
+
+            <div class="form-group">
+                <label for="department" class="form-label">Departments</label>
+                <select id="department" name="department" class="form-control">
+                    {{range .Departments}}
+                    <option value="{{.Id}}" {{if eq .Id $.Employee.DepartmentId}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <a href="/employees" class="btn btn-cancel">Cancel</a>
+                <button type="submit" class="btn btn-submit">Update</button>
+            </div>
+
+        </form>
+    </div>
+</body>
+</html>
+
+{{ end }}
