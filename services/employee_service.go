@@ -9,14 +9,47 @@ import (
     "strconv"
 )
 
-func FetchAllEmployees(keyword string) ([]dto.EmployeeResponse, error) {
-    employees, err := repositories.GetAllEmployees(keyword)
+func FetchEmployees(r *http.Request) ([]dto.EmployeeResponse, error, string, int, int, int, int) {
+    // Get condition from param
+    keyword := r.URL.Query().Get("keyword")
+    page := r.URL.Query().Get("page")
+    pageSize := r.URL.Query().Get("page_size")
 
+    if pageSize == "" {
+        pageSize = "10"
+    }
+    if page == "" {
+        page = "1"
+    }
+
+    pageInt, _ := strconv.Atoi(page)
+    pageSizeInt, _ := strconv.Atoi(pageSize)
+
+    // Get total count to calculate total pages
+    total, err := repositories.CountEmployees(keyword)
+    if err != nil {
+        log.Printf("Error counting employees: %v", err)
+        return nil, err, keyword, pageInt, pageSizeInt, 0, 0
+    }
+    totalPages := (total + pageSizeInt - 1) / pageSizeInt
+    if pageInt > totalPages && totalPages != 0 {
+        pageInt = totalPages
+    }
+
+    var employees []dto.EmployeeResponse
+    if total == 0 {
+        return employees, nil, keyword, pageInt, pageSizeInt, total, totalPages
+    }
+
+    var offset int
+    offset = (pageInt - 1) * pageSizeInt
+    employees, err = repositories.GetEmployeesByCondition(keyword, offset, pageSizeInt)
     if err != nil {
         log.Printf("Error fetching employees: %v", err)
-        return nil, err
+        return nil, err, keyword, pageInt, pageSizeInt, total, totalPages
     }
-    return employees, nil
+
+    return employees, nil, keyword, pageInt, pageSizeInt, total, totalPages
 }
 
 func InsertEmployee(r *http.Request) error {

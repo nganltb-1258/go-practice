@@ -1,30 +1,32 @@
 package repositories
 
 import (
-    "database/sql"
     "employee/config"
     "employee/models"
     "employee/dto"
+    "fmt"
     "log"
 )
 
-func GetAllEmployees(keyword string) ([]dto.EmployeeResponse, error) {
+func GetEmployeesByCondition(keyword string, offset int, limit int) ([]dto.EmployeeResponse, error) {
     query := `SELECT e.id, e.name, e.age, e.position, e.salary, d.name
         FROM employees e
         JOIN departments d ON e.department_id = d.id`
+
+    var args []interface{}
+    param := 1
+
     if keyword != "" {
-        query += ` WHERE e.name ILIKE '%' || $1 || '%'`
+        query += fmt.Sprintf(" WHERE e.name ILIKE '%%' || $%d || '%%'", param)
+        args = append(args, keyword)
+        param++
     }
 
-    query += ` ORDER BY e.id;`
+    query += fmt.Sprintf(" ORDER BY e.id LIMIT $%d OFFSET $%d", param, param+1)
+    args = append(args, limit)
+    args = append(args, offset)
 
-    var rows *sql.Rows
-    var err error
-    if keyword != "" {
-        rows, err = config.DB.Query(query, keyword)
-    } else {
-        rows, err = config.DB.Query(query)
-    }
+    rows, err := config.DB.Query(query, args...)
 
     if err != nil {
         log.Printf("Error querying employees: %v", err)
@@ -48,6 +50,25 @@ func GetAllEmployees(keyword string) ([]dto.EmployeeResponse, error) {
     }
 
     return employees, nil
+}
+
+func CountEmployees(keyword string) (int, error) {
+    query := `SELECT COUNT(*) FROM employees`
+    var args []interface{}
+    param := 1
+
+    if keyword != "" {
+        query += fmt.Sprintf(" WHERE name ILIKE '%%' || $%d || '%%'", param)
+        args = append(args, keyword)
+    }
+
+    var total int
+    err := config.DB.QueryRow(query, args...).Scan(&total)
+    if err != nil {
+        return 0, err
+    }
+
+    return total, nil
 }
 
 func InsertEmployee(emp models.Employee) error {

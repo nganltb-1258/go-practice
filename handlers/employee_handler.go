@@ -12,6 +12,11 @@ import (
 type EmployeePageData struct {
     Employees []dto.EmployeeResponse
     Keyword string
+    Page int
+    PageSize int
+    TotalPages int
+    Total int
+    Pages []int
 }
 
 type DepartmentPageData struct {
@@ -19,18 +24,34 @@ type DepartmentPageData struct {
 }
 
 func EmployeeIndexHandler(w http.ResponseWriter, r *http.Request) {
-    tmpl := template.Must(template.New("index").ParseFiles("templates/index.html"))
+    tmpl := template.Must(template.New("index").Funcs(template.FuncMap{
+        "add": func(a, b int) int {
+            return a + b
+        },
+        "sub": func(a, b int) int {
+            return a - b
+        },
+    }).ParseFiles("templates/index.html"))
 
-    keyword := r.URL.Query().Get("keyword")
-    employees, err := services.FetchAllEmployees(keyword)
+    employees, err, keyword, page, pageSize, total, totalPages := services.FetchEmployees(r)
     if err != nil {
         http.Error(w, "Error fetching employees", http.StatusInternalServerError)
         return
     }
 
+    pages := make([]int, totalPages)
+    for i := 0; i < totalPages; i++ {
+        pages[i] = i + 1
+    }
+
     data := EmployeePageData{
         Employees: employees,
         Keyword: keyword,
+        Page: page,
+        PageSize: pageSize,
+        TotalPages: totalPages,
+        Total: total,
+        Pages: pages,
     }
 
     err = tmpl.Execute(w, data)

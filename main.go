@@ -3,6 +3,7 @@ package main
 import (
     "employee/config"
     "employee/handlers"
+    "employee/middleware"
     "employee/utils"
     "net/http"
 )
@@ -17,12 +18,12 @@ func main() {
     http.Handle("/static/", http.StripPrefix("/static/", fs))
 
     // Handle employee page
-    http.HandleFunc("/employees", handlers.EmployeeIndexHandler)
-    http.HandleFunc("/employees/new", handlers.EmployeeCreateHandler)
-    http.HandleFunc("/employees/insert", handlers.EmployeeInsertHandler)
-    http.HandleFunc("/employees/edit", handlers.EmployeeEditHandler)
-    http.HandleFunc("/employees/update", handlers.EmployeeUpdateHandler)
-    http.HandleFunc("/employees/delete", handlers.EmployeeDeleteHandler)
+    http.Handle("/employees", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeIndexHandler)))
+    http.Handle("/employees/new", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeCreateHandler)))
+    http.Handle("/employees/insert", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeInsertHandler)))
+    http.Handle("/employees/edit", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeEditHandler)))
+    http.Handle("/employees/update", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeUpdateHandler)))
+    http.Handle("/employees/delete", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeDeleteHandler)))
 
     // Start server
     port := utils.GetEnv("APP_PORT", "8080")
