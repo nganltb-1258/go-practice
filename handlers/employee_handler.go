@@ -1,12 +1,15 @@
 package handlers
 
 import (
+    "archive/zip"
     "employee/services"
     "employee/dto"
     "employee/models"
+    "employee/validates"
     "html/template"
     "net/http"
     "log"
+    "employee/utils"
 )
 
 type EmployeePageData struct {
@@ -35,7 +38,7 @@ func EmployeeIndexHandler(w http.ResponseWriter, r *http.Request) {
 
     employees, err, keyword, page, pageSize, total, totalPages := services.FetchEmployees(r)
     if err != nil {
-        http.Error(w, "Error fetching employees", http.StatusInternalServerError)
+        utils.WriteError(w, "Error fetching employees", http.StatusInternalServerError)
         return
     }
 
@@ -56,8 +59,7 @@ func EmployeeIndexHandler(w http.ResponseWriter, r *http.Request) {
 
     err = tmpl.Execute(w, data)
     if err != nil {
-        log.Printf("Error executing template: %v", err)
-        http.Error(w, "Error rendering page", http.StatusInternalServerError)
+        utils.WriteError(w, "Error rendering page", http.StatusInternalServerError)
     }
 }
 
@@ -66,7 +68,7 @@ func EmployeeCreateHandler(w http.ResponseWriter, r *http.Request) {
 
     departments, err := services.FetchAllDepartments()
     if err != nil {
-        http.Error(w, "Error fetching departments", http.StatusInternalServerError)
+        utils.WriteError(w, "Error fetching departments", http.StatusInternalServerError)
         return
     }
 
@@ -83,14 +85,15 @@ func EmployeeCreateHandler(w http.ResponseWriter, r *http.Request) {
 
 func EmployeeInsertHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        utils.WriteError(w, "Invalid request method", http.StatusMethodNotAllowed)
         return
     }
 
+    validates.ValidateEmployeeInsertUpdate(w, r)
+
     err := services.InsertEmployee(r)
     if err != nil {
-        log.Printf("Error inserting employee: %v", err)
-        http.Error(w, "Error creating employee", http.StatusInternalServerError)
+        utils.WriteError(w, "Error creating employee", http.StatusInternalServerError)
         return
     }
 
@@ -100,14 +103,13 @@ func EmployeeInsertHandler(w http.ResponseWriter, r *http.Request) {
 
 func EmployeeDeleteHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        utils.WriteError(w, "Invalid request method", http.StatusMethodNotAllowed)
         return
     }
 
     err := services.DeleteEmployee(r)
     if err != nil {
-        log.Printf("Error deleting employee: %v", err)
-        http.Error(w, "Error deleting employee", http.StatusInternalServerError)
+        utils.WriteError(w, "Error deleting employee", http.StatusInternalServerError)
         return
     }
 
@@ -119,14 +121,19 @@ func EmployeeEditHandler(w http.ResponseWriter, r *http.Request) {
 
     employeeId := r.URL.Query().Get("id")
     employee, err := services.FetchEmployeeById(employeeId)
+    if employee == (models.Employee{}) {
+        utils.WriteError(w, "Employee not found", http.StatusNotFound)
+        return
+    }
+
     if err != nil {
-        http.Error(w, "Error fetching employee", http.StatusInternalServerError)
+        utils.WriteError(w, err.Error(), http.StatusInternalServerError)
         return
     }
 
     departments, err := services.FetchAllDepartments()
     if err != nil {
-        http.Error(w, "Error fetching departments", http.StatusInternalServerError)
+        utils.WriteError(w, "Error fetching departments", http.StatusInternalServerError)
         return
     }
 
@@ -140,16 +147,17 @@ func EmployeeEditHandler(w http.ResponseWriter, r *http.Request) {
 
     err = tmpl.Execute(w, data)
     if err != nil {
-        log.Printf("Error executing template: %v", err)
-        http.Error(w, "Error rendering page", http.StatusInternalServerError)
+        utils.WriteError(w, "Error rendering page", http.StatusInternalServerError)
     }
 }
 
 func EmployeeUpdateHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        utils.WriteError(w, "Invalid request method", http.StatusMethodNotAllowed)
         return
     }
+
+    validates.ValidateEmployeeInsertUpdate(w, r)
 
     err := services.UpdateEmployee(r)
     if err != nil {
@@ -159,4 +167,35 @@ func EmployeeUpdateHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     http.Redirect(w, r, "/employees", http.StatusSeeOther)
+}
+
+func EmployeeExportHandler(w http.ResponseWriter, r *http.Request) {
+    csvData, jsonData, err := services.ExportEmployeesConcurrently(100)
+    if err != nil {
+        utils.WriteError(w, "Error exporting employees", http.StatusInternalServerError)
+        return
+    }
+
+    // Create a zip file containing both CSV and JSON
+    w.Header().Set("Content-Disposition", "attachment; filename=employees.zip")
+    w.Header().Set("Content-Type", "application/zip")
+
+    zipWriter := zip.NewWriter(w)
+    defer zipWriter.Close()
+
+    // Add CSV file to zip
+    csvFile, err := zipWriter.Create("employees.csv")
+    if err != nil {
+        utils.WriteError(w, "Error creating zip file", http.StatusInternalServerError)
+        return
+    }
+    csvFile.Write([]byte(csvData))
+
+    // Add JSON file to zip
+    jsonFile, err := zipWriter.Create("employees.json")
+    if err != nil {
+        utils.WriteError(w, "Error creating zip file", http.StatusInternalServerError)
+        return
+    }
+    jsonFile.Write([]byte(jsonData))
 }

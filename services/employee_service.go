@@ -7,6 +7,8 @@ import (
     "net/http"
     "log"
     "strconv"
+    "encoding/json"
+    "sync"
 )
 
 func FetchEmployees(r *http.Request) ([]dto.EmployeeResponse, error, string, int, int, int, int) {
@@ -104,6 +106,7 @@ func FetchEmployeeById(idStr string) (models.Employee, error) {
         log.Printf("Error fetching employee by ID: %v", err)
         return models.Employee{}, err
     }
+
     return employee, nil
 }
 
@@ -133,4 +136,92 @@ func UpdateEmployee(r *http.Request) error {
         return err
     }
     return nil
+}
+
+func ExportEmployeesConcurrently(chunkSize int) (string, string, error) {
+    total, err := repositories.CountEmployees("")
+    if err != nil {
+        log.Printf("Error fetching employees for export: %v", err)
+        return "", "", err
+    }
+
+    var wg sync.WaitGroup
+    var mu sync.Mutex
+
+    var csvData string
+    var jsonData string
+    var csvErr error
+    var jsonErr error
+
+    // Export to CSV with chunks
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        var csv string
+        csv += "ID,Name,Age,Position,Department ID,Salary\n"
+
+        for i := 0; i < total; i += chunkSize {
+            end := i + chunkSize
+            if end > total {
+                end = total
+            }
+            employees, err := repositories.GetEmployeesByCondition("", i, chunkSize)
+            if err != nil {
+                log.Printf("Error fetching employees chunk: %v", err)
+                continue
+            }
+
+            for _, emp := range employees {
+                csv += strconv.Itoa(emp.Id) + "," +
+                    emp.Name + "," +
+                    strconv.Itoa(emp.Age) + "," +
+                    emp.Position + "," +
+                    strconv.Itoa(emp.DepartmentId) + "," +
+                    strconv.FormatFloat(emp.Salary, 'f', 2, 64) + "\n"
+            }
+        }
+
+        mu.Lock()
+        csvData = csv
+        mu.Unlock()
+    }()
+
+    // Export to JSON with chunks
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        var allEmployees []dto.EmployeeResponse
+
+        for i := 0; i < total; i += chunkSize {
+            employees, err := repositories.GetEmployeesByCondition("", i, chunkSize)
+            if err != nil {
+                mu.Lock()
+                jsonErr = err
+                mu.Unlock()
+                log.Printf("Error fetching employees chunk for JSON: %v", err)
+                return
+            }
+            allEmployees = append(allEmployees, employees...)
+        }
+
+        jsonBytes, err := json.Marshal(allEmployees)
+        mu.Lock()
+        if err != nil {
+            jsonErr = err
+        } else {
+            jsonData = string(jsonBytes)
+        }
+        mu.Unlock()
+    }()
+
+    wg.Wait()
+
+    if csvErr != nil {
+        return "", "", csvErr
+    }
+    if jsonErr != nil {
+        return "", "", jsonErr
+    }
+
+    return csvData, jsonData, nil
 }
