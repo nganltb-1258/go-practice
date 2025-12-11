@@ -24,6 +24,8 @@
             <div class="info-bar">
                 <span>Total Records: {{.Total}}.</span>
                 <span>This is page {{.Page}} in total {{.TotalPages}} page(s)</span>
+
+                <a href="/employees/export" style="float: right;">Export CSV</a>
             </div>
             {{if gt .TotalPages 1}}
             <div class="pagination">

@@ -7,4 +7,5 @@ type EmployeeResponse struct {
     Position string
     Salary float64
     DepartmentName string
+    DepartmentId int
 }

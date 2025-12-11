@@ -9,7 +9,7 @@ import (
 )
 
 func GetEmployeesByCondition(keyword string, offset int, limit int) ([]dto.EmployeeResponse, error) {
-    query := `SELECT e.id, e.name, e.age, e.position, e.salary, d.name
+    query := `SELECT e.id, e.name, e.age, e.position, e.salary, d.name, e.department_id
         FROM employees e
         JOIN departments d ON e.department_id = d.id`
 
@@ -37,7 +37,7 @@ func GetEmployeesByCondition(keyword string, offset int, limit int) ([]dto.Emplo
     var employees []dto.EmployeeResponse
     for rows.Next() {
         var emp dto.EmployeeResponse
-        if err := rows.Scan(&emp.Id, &emp.Name, &emp.Age, &emp.Position, &emp.Salary, &emp.DepartmentName); err != nil {
+        if err := rows.Scan(&emp.Id, &emp.Name, &emp.Age, &emp.Position, &emp.Salary, &emp.DepartmentName, &emp.DepartmentId); err != nil {
             log.Printf("Error scanning employee row: %v", err)
             return nil, err
         }

@@ -24,6 +24,7 @@ func main() {
     http.Handle("/employees/edit", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeEditHandler)))
     http.Handle("/employees/update", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeUpdateHandler)))
     http.Handle("/employees/delete", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeDeleteHandler)))
+    http.Handle("/employees/export", middleware.LoggingMiddleware(http.HandlerFunc(handlers.EmployeeExportHandler)))
 
     // Start server
     port := utils.GetEnv("APP_PORT", "8080")
